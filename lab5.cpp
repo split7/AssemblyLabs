@@ -13,46 +13,56 @@ void compute(double a, double b, double c) {
     const double c4 = 4.0, c2 = 2.0, c1 = 1.0;
 
     __asm__ __volatile__ (
-        "finit \n"
+        "finit\n\t"
         // Вычисляем числитель (4*b/c + 1)
-        "fld [b] \n"          // st0 = b
-        "fmull [c4] \n"        // st0 = 4*b
-        "fld [c] \n"          // st0 = c, st1 = 4*b
-        "ftst \n"               // Проверка c на 0
-        "fnstsw ax \n"
-        "sahf \n"
-        "jz error_zf \n"              // Переход если c=0
-        "fdivp st(1), st \n"     // st0 = (4*b)/c
-        "fadd [c1] \n"        // st0 = (4*b/c) + 1
+        "fld %[b]\n\t"            // st0 = b
+        "fmul %[c4]\n\t"          // st0 = 4*b
+        "fld %[c]\n\t"            // st0 = c, st1 = 4*b
+        "ftst\n\t"
+        "fnstsw %%ax\n\t"
+        "sahf\n\t"
+        "jz 1f\n\t"               // Ошибка деления на 0
+
+        // Вычисление 4*b/c
+        "fdivp %%st(1), %%st(0)\n\t"  // st0 = (4*b)/c
+
+        // Добавляем 1 к результату
+        "fadd %[c1]\n\t"          // st0 = 4*b/c + 1 (числитель)
 
         // Вычисляем знаменатель (2*c + a*c - b)
-        "fld [c] \n"          // st0 = c, st1 = числитель
-        "fmull [c2] \n"        // st0 = 2*c
-        "fld [a] \n"          // st0 = a, st1 = 2*c
-        "fmull [c] \n"         // st0 = a*c
-        "faddp st(1), st \n"      // st0 = 2*c + a*c
-        "fsub [b] \n"         // st0 = 2*c + a*c - b
+        "fld %[c]\n\t"            // st0 = c, st1 = числитель
+        "fmul %[c2]\n\t"          // st0 = 2*c
+        "fld %[a]\n\t"            // st0 = a, st1 = 2*c
+        "fmul %[c]\n\t"           // st0 = a*c
+        "faddp\n\t"               // st0 = 2*c + a*c
+        "fsub %[b]\n\t"           // st0 = 2*c + a*c - b (знаменатель)
 
         // Проверка знаменателя на 0
-        "ftst \n"
-        "fnstsw ax \n"
-        "sahf \n"
-        "jz error_zf \n"              // Переход если знаменатель=0
+        "ftst\n\t"
+        "fnstsw %%ax\n\t"
+        "sahf\n\t"
+        "jz 1f\n\t"               // Ошибка деления на 0
 
         // Деление числителя (st1) на знаменатель (st0)
-        "fdivp st(1), st\n"     // st0 = числитель / знаменатель
-        "fstp [result] \n"    // Сохраняем результат
-        "mov [flag], 0 \n"
-        "jmp exit \n"
+        "fdivp %%st(1), %%st(0)\n\t"  // st0 = числитель / знаменатель
+        "fstp %[result]\n\t"      // Сохраняем результат
+        "mov %[flag], 0\n\t"
+        "jmp 2f\n\t"
 
-        "error_zf: \n"                 // Ошибка деления на 0
-        "mov [flag], 2 \n"
+        "1:\n\t"                  // Обработка ошибки
+        "mov %[flag], 2\n\t"
+        "finit\n\t"               // Сброс FPU
 
-        "exit: \n"
-        : [result] "=m" (result), [flag] "=r" (flag)
-        : [a] "m" (a), [b] "m" (b), [c] "m" (c),
-          [c4] "m" (c4), [c2] "m" (c2), [c1] "m" (c1)
-        : "eax", "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "cc"
+        "2:\n\t"
+        : [result] "=m" (result),
+          [flag] "=r" (flag)
+        : [a] "m" (a),
+          [b] "m" (b),
+          [c] "m" (c),
+          [c4] "m" (c4),
+          [c2] "m" (c2),
+          [c1] "m" (c1)
+        : "eax", "st", "st(1)", "st(2)", "st(3)", "st(4)", "cc"
     );
 
     if (flag == 2) {
