@@ -21,10 +21,9 @@ int compute(int d, int* mas, int size) {
         "xor esi, esi \n" //подготовим регистр индекса в массиве
         "xor edi, edi \n" //Cумма
 
-        "cmp ecx, 0 \n" //Сравнение size с 0
         "jecxz exit \n" //завершить если длина массива 0
 
-        "sub esp, 8 \n"
+        "sub esp, 4 \n"
         "mov [esp], edx \n" //В стеке d
         "xor edx, edx \n"
 
@@ -58,7 +57,7 @@ int compute(int d, int* mas, int size) {
         "jmp exit \n" //Безусловный переход
         "exit: \n" //Выход
         "mov eax, edi \n"
-        "add esp, 8 \n"
+        "add esp, 4 \n"
         :"+a"(result), "=b" (flag) //result <- eax, flag <- ebx, выходные параметры
         :"b"(mas), "d"(d), "c"(size) // ebx <- mas, edx <- d, ecx <- size входные параметры
         : "edi", "esi"//список задействованных регистров, кроме перечисленных выше
@@ -88,7 +87,7 @@ int checkInt() {
 }
 int main() {
     int size = 2;
-    int* mas = new int[size]{-1291, -1292};
+    int* mas = new int[size]{-10000, -10001};
     std::cout << "Введите значение d: ";
     int d = checkInt();
     std::cout << "Result asm = " << compute(d, mas, size) << std::endl;
